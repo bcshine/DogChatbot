@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>견체공학 챗봇</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">
+      <img src="{{ url_for('static', filename='assets/dog2.jpg') }}" alt="logo" class="logo-image">
+      <div class="brand-title">견체공학 챗봇</div>
+    </div>
+    <!-- 상단 4개 버튼 영역 -->
+    <div id="category-area" class="input-area" data-initial-options='{{ categories|tojson|safe }}'></div>
+    <!-- 채팅 메시지 영역 -->
+    <div id="chat-area" class="chat-area"></div>
+    <!-- 로딩 스피너 -->
+    <div id="loading-spinner" class="loading-spinner">
+      <div class="spinner"></div>
+    </div>
+    <!-- 질문 입력란 영역 -->
+    <div id="input-area" class="input-area">
+      <form id="message-form" class="message-form">
+        <input type="text" id="message-input" placeholder="메시지를 입력하세요...">
+        <button type="submit" id="send-button">전송</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
