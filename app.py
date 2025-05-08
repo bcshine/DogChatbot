@@ -5,23 +5,35 @@ import difflib
 import openai
 from dotenv import load_dotenv
 
-# .env 파일에서 환경 변수 로드
+# .env 파일에서 환경 변수 로드 (로컬 개발용)
 load_dotenv()
 
 app = Flask(__name__)
 
 # OpenAI API 키 설정
-openai.api_key = os.environ.get('OPENAI_API_KEY')
+# 로컬에서는 .env 파일에서, 배포 환경에서는 환경 변수에서 직접 가져옴
+api_key = os.environ.get('OPENAI_API_KEY')
+if not api_key:
+    print("경고: OPENAI_API_KEY가 설정되지 않았습니다!")
+openai.api_key = api_key
 
-DATA_FILE = '견체공학_챗봇_보강본.csv'
+# 파일 경로 설정
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_FILE = os.path.join(BASE_DIR, '견체공학_챗봇_보강본.csv')
+
 # CSV 데이터 로드
 data = []
-with open(DATA_FILE, encoding='utf-8') as f:
-    reader = csv.DictReader(f)
-    for row in reader:
-        examples = [line.strip() for line in row['사용자 질문 예시'].splitlines() if line.strip()]
-        row['examples'] = examples
-        data.append(row)
+try:
+    with open(DATA_FILE, encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            examples = [line.strip() for line in row['사용자 질문 예시'].splitlines() if line.strip()]
+            row['examples'] = examples
+            data.append(row)
+    print(f"성공적으로 {len(data)}개의 데이터 로드됨")
+except Exception as e:
+    print(f"CSV 파일 로드 오류: {str(e)}")
+    data = []
 
 # 정적 응답 데이터
 extra_data = {
@@ -187,6 +199,7 @@ def ping_ai():
         return jsonify(status='error', error=str(e)), 500
 
 if __name__ == '__main__':
-    # Render.com에서는 환경 변수 PORT를 사용
+    # 로컬 개발 환경에서만 실행됨
+    # Render.com에서는 gunicorn이 app 객체를 직접 사용
     port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port, debug=True) 
+    app.run(host='0.0.0.0', port=port) 
