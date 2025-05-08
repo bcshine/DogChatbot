@@ -3,12 +3,23 @@ import os
 import csv
 import difflib
 import openai
+import sys
 from dotenv import load_dotenv
+
+# 디버깅 정보 출력
+print(f"Python 버전: {sys.version}")
+print(f"현재 작업 디렉토리: {os.getcwd()}")
+print(f"환경 변수 목록: {list(os.environ.keys())}")
+print(f"PORT 환경 변수: {os.environ.get('PORT', '없음')}")
 
 # .env 파일에서 환경 변수 로드 (로컬 개발용)
 load_dotenv()
 
 app = Flask(__name__)
+
+# Render.com에서 포트 번호 처리를 명시적으로 설정
+port = int(os.environ.get("PORT", 8080))
+print(f"사용 포트: {port}")
 
 # OpenAI API 키 설정
 # 로컬에서는 .env 파일에서, 배포 환경에서는 환경 변수에서 직접 가져옴
@@ -96,7 +107,37 @@ RESPONSE_GUIDELINES = """
 
 @app.route('/')
 def index():
+    print(f"/ 경로에 대한 요청 수신, 호스트: {request.host}")
     return render_template('index.html', categories=CATEGORIES)
+
+# 헬스체크 엔드포인트 추가
+@app.route('/health')
+def health():
+    # 시스템 상태 확인
+    api_key_status = "설정됨" if openai.api_key else "설정되지 않음"
+    data_status = f"로드됨 ({len(data)}개 항목)" if data else "로드 실패"
+    
+    # 데이터 샘플 5개 포함
+    data_sample = []
+    if data:
+        for i, item in enumerate(data[:5]):
+            data_sample.append({
+                "소분류": item.get("소분류", ""),
+                "examples_count": len(item.get("examples", [])),
+            })
+    
+    # 정적 데이터 확인
+    extra_data_keys = list(extra_data.keys())
+    
+    return jsonify(
+        status="ok", 
+        message="서비스가 정상 작동 중입니다.",
+        api_key_status=api_key_status,
+        data_status=data_status,
+        data_sample=data_sample,
+        extra_data_keys=extra_data_keys,
+        categories=CATEGORIES
+    )
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -107,6 +148,13 @@ def chat():
     if message in extra_data:
         answer = extra_data[message]
         return jsonify(bot=answer, options=POST_OPTIONS)
+        
+    # 견체공학 소개 관련 키워드 질문 처리
+    if "견체공학" in message and ("뭔가요" in message or "무엇" in message or "소개" in message or "어떤" in message):
+        print("견체공학 소개 관련 질문 감지됨")
+        answer = extra_data["견체공학 소개"]
+        return jsonify(bot=answer, options=POST_OPTIONS)
+        
     # 카테고리 선택 처리
     if message in ['어부바가방', '견글라스']:
         # 관련 소분류 추출
@@ -187,6 +235,15 @@ def chat():
             print(f"폴백 - 선택된 답변: {ans[:30]}...")
             return jsonify(bot=ans + '\n\n더 도움이 필요하면 상담원 연결을 요청해주세요.', options=POST_OPTIONS)
         
+        # API 오류 + 견체공학 관련 질문인 경우 기본 정보 제공
+        if "견체공학" in message:
+            print("API 오류 발생, 견체공학 기본 정보 제공")
+            answer = f"""견체공학은 반려견과 보호자의 편안함을 최우선으로 생각하는 브랜드입니다.
+주요 제품으로는 어부바가방(중형견 가방 시장 9년 연속 1위)과 견글라스(강아지용 선글라스)가 있습니다.
+
+더 도움이 필요하면 상담원 연결을 요청해주세요."""
+            return jsonify(bot=answer, options=POST_OPTIONS)
+        
         # 이해 못했을 때
         return jsonify(bot='죄송합니다, 이해하지 못했어요. 선택지를 다시 안내드릴게요!', options=CATEGORIES)
 
@@ -201,5 +258,4 @@ def ping_ai():
 if __name__ == '__main__':
     # 로컬 개발 환경에서만 실행됨
     # Render.com에서는 gunicorn이 app 객체를 직접 사용
-    port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port) 
